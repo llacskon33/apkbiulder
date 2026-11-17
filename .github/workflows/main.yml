@@ -3,8 +3,13 @@ name: Build APK
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -19,21 +24,41 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+
+      - name: Comprobar archivos Gradle
+        run: |
+          echo "Comprobando archivos..."
+          ls -la
+          if [ ! -f "./gradlew" ]; then
+            echo "ERROR: No existe gradlew en la carpeta principal"
+            exit 1
+          fi
+
+      - name: Dar permisos a Gradle
+        run: |
+          sed -i 's/\r$//' ./gradlew
+          chmod 755 ./gradlew
+          ls -l ./gradlew
 
       - name: Preparar Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Dar permisos a Gradle
-        run: chmod +x ./gradlew
+      - name: Comprobar versión de Gradle
+        run: ./gradlew --version --no-daemon
 
       - name: Compilar APK Debug
         run: ./gradlew assembleDebug --no-daemon
 
       - name: Comprobar APK
         run: |
-          test -f app/build/outputs/apk/debug/app-debug.apk
+          if [ ! -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
+            echo "ERROR: No se ha generado el APK"
+            exit 1
+          fi
+          ls -lh app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Guardar APK
+      - name: Subir APK
         uses: actions/upload-artifact@v4
         with:
           name: PS4toXboxMapper-debug-apk
